@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>گره‌گشا — پازل خطوط</title>
+<style>
+  * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(circle at 30% 20%, #2a1838, #0a0610 70%);
+    display: flex; justify-content: center; align-items: flex-start;
+    font-family: Tahoma, 'Segoe UI', sans-serif; padding: 12px;
+    color: #eaf2ff; overflow-x: hidden;
+  }
+  .wrap {
+    background: rgba(24,16,38,.96);
+    border-radius: 28px; padding: 20px;
+    box-shadow: 0 25px 70px #000, inset 0 0 0 1px #4a2f6a;
+    width: 100%; max-width: 520px;
+    text-align: center; position: relative; overflow: hidden;
+    margin: auto;
+  }
+  .wrap::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 80% 0%, rgba(255,100,200,.15), transparent 50%),
+                radial-gradient(circle at 0% 100%, rgba(100,200,255,.12), transparent 50%);
+    pointer-events: none;
+  }
+  .header-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px; position: relative;
+  }
+  .header-row h1 {
+    margin: 0; font-size: 1.5rem;
+    background: linear-gradient(90deg, #ff9dd9, #b388ff, #64d2ff, #ff9dd9);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(179,136,255,.6));
+    animation: shine 4s linear infinite;
+  }
+  @keyframes shine { to { background-position: 200% center; } }
+  .header-right { display: flex; gap: 6px; align-items: center; }
+  .chip-score {
+    background: #1a1030; border: 1px solid #5a3f8a; color: #ffd966;
+    padding: 4px 10px; border-radius: 12px; font-size: .72rem;
+    font-weight: bold;
+  }
+  .icon-btn {
+    background: linear-gradient(145deg, #2a1f4a, #16102a);
+    border: 1px solid #5a3f8a; color: #eaf2ff;
+    border-radius: 10px; padding: 5px 9px; font-size: .9rem;
+    cursor: pointer; transition: .15s; box-shadow: 0 2px 0 #08060f;
+  }
+  .icon-btn:hover { color: #b388ff; border-color: #b388ff; }
+  .sub { color: #a090c0; font-size: .82rem; margin-bottom: 14px; position: relative; }
+  .stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px; margin-bottom: 14px; position: relative;
+  }
+  .stat {
+    background: #1a1030; border-radius: 12px; padding: 8px 4px;
+    border: 1px solid #3a2f5a;
+  }
+  .stat .label { font-size: .62rem; color: #8a7ab0; }
+  .stat .value { font-size: 1.05rem; font-weight: bold; color: #b388ff; font-variant-numeric: tabular-nums; }
+  .stat .value.good { color: #6dffa8; }
+  .stat .value.warn { color: #ff9d5c; }
+  .board-wrap {
+    position: relative;
+    border-radius: 20px;
+    background: radial-gradient(circle at 50% 50%, #1e1438, #100820);
+    box-shadow: inset 0 0 30px #000, 0 0 0 2px #3a2f5a;
+    overflow: hidden;
+    margin-bottom: 10px;
+    transition: box-shadow .4s;
+  }
+  .board-wrap.solved {
+    box-shadow: inset 0 0 30px #000, 0 0 0 2px #6dffa8, 0 0 40px rgba(109,255,168,.4);
+  }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  .win-overlay {
+    position: absolute; inset: 0;
+    display: flex; justify-content: center; align-items: center;
+    background: rgba(10,6,16,.94);
+    opacity: 0; pointer-events: none;
+    transition: opacity .4s;
+    backdrop-filter: blur(6px);
+    z-index: 5;
+  }
+  .win-overlay.show { opacity: 1; pointer-events: auto; }
+  .win-content { text-align: center; padding: 20px; }
+  .win-content h2 {
+    margin: 0 0 8px; font-size: 1.8rem; color: #6dffa8;
+    text-shadow: 0 0 20px rgba(109,255,168,.6);
+  }
+  .win-stars {
+    display: flex; justify-content: center; gap: 6px; margin: 8px 0 10px;
+  }
+  .win-stars .star {
+    font-size: 2rem; opacity: 0; transform: scale(0) rotate(-180deg);
+    transition: all .5s cubic-bezier(.34,1.56,.64,1);
+    display: inline-block;
+  }
+  .win-stars .star.on {
+    opacity: 1; transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 12px #ffd966);
+  }
+  .score-gain {
+    color: #ffd966; font-size: 1.1rem; font-weight: bold;
+    margin-bottom: 6px; text-shadow: 0 0 15px rgba(255,217,102,.5);
+  }
+  .win-detail {
+    color: #a090c0; font-size: .78rem; line-height: 1.6;
+    margin-bottom: 14px;
+  }
+  .win-buttons { display: flex; gap: 8px; justify-content: center; }
+  .win-buttons button { padding: 10px 18px; font-size: .85rem; }
+  .best-row {
+    display: flex; justify-content: center; align-items: center;
+    gap: 6px; margin-bottom: 10px; min-height: 22px;
+    flex-wrap: wrap;
+  }
+  .best-label { font-size: .7rem; color: #8a7ab0; }
+  .mini-star {
+    font-size: 1rem; opacity: .25;
+    transition: opacity .3s ease, filter .3s ease;
+  }
+  .mini-star.on {
+    opacity: 1; filter: drop-shadow(0 0 6px #ffd966);
+  }
+  .best-moves {
+    color: #ffd966; font-size: .72rem; font-weight: bold;
+  }
+  .divider { color: #4a2f6a; font-size: .7rem; margin: 0 2px; }
+  .controls {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    margin-bottom: 8px; position: relative;
+  }
+  button {
+    background: linear-gradient(145deg, #2a1f4a, #16102a);
+    color: #eaf2ff; border: 1px solid #5a3f8a;
+    padding: 11px 8px; border-radius: 14px;
+    font-size: .85rem; font-weight: bold; font-family: inherit;
+    cursor: pointer; transition: .15s;
+    box-shadow: 0 4px 0 #08060f;
+  }
+  button:hover:not(:disabled) { color: #b388ff; border-color: #b388ff; transform: translateY(-1px); }
+  button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #08060f; }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  button.primary {
+    background: linear-gradient(145deg, #6a2a8a, #3a1050);
+    border-color: #b388ff;
+  }
+  button.primary:hover:not(:disabled) { color: #ffd966; border-color: #ffd966; }
+  button.big { padding: 12px 24px; font-size: .95rem; }
+  .link-btn {
+    background: none; border: none; box-shadow: none;
+    color: #8a7ab0; font-size: .7rem; padding: 4px;
+    text-decoration: underline; cursor: pointer; font-family: inherit;
+  }
+  .link-btn:hover { color: #b388ff; }
+  .msg {
+    min-height: 1.4em; font-weight: bold; font-size: .92rem;
+    margin-top: 6px; transition: color .3s; position: relative;
+  }
+  .msg.good { color: #6dffa8; text-shadow: 0 0 12px #2eff7e; }
+  .msg.bad  { color: #ff6b6b; text-shadow: 0 0 12px #ff2a2a; }
+  .msg.info { color: #b388ff; }
+  .help {
+    background: #100820; border-radius: 12px; padding: 10px 14px;
+    font-size: .72rem; color: #8a7ab0; line-height: 1.7;
+    margin-top: 12px; border: 1px solid #2a1f4a; text-align: right;
+    position: relative;
+  }
+  .help b { color: #b388ff; }
+  .particle {
+    position: fixed; width: 8px; height: 8px; border-radius: 50%;
+    pointer-events: none; z-index: 100;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header-row">
+    <h1>🧩 گره‌گشا</h1>
+    <div class="header-right">
+      <span class="chip-score" id="totalScoreChip" title="مجموع بهترین امتیاز هر مرحله">🏆 ۰</span>
+      <button class="icon-btn" id="soundBtn" title="صدا">🔊</button>
+    </div>
+  </div>
+  <div class="sub">گره‌ها را جابه‌جا کن تا هیچ خطی قطع نشود</div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">مرحله</div><div class="value" id="levelEl">۱</div></div>
+    <div class="stat"><div class="label">تقاطع</div><div class="value" id="crossEl">۰</div></div>
+    <div class="stat"><div class="label">حرکت</div><div class="value" id="movesEl">۰</div></div>
+    <div class="stat"><div class="label">امتیاز</div><div class="value" id="scoreEl">۰</div></div>
+  </div>
+
+  <div class="board-wrap" id="boardWrap">
+    <canvas id="cv"></canvas>
+    <div class="win-overlay" id="winOverlay">
+      <div class="win-content">
+        <h2>🎉 حل شد!</h2>
+        <div class="win-stars">
+          <span class="star" id="s1">⭐</span>
+          <span class="star" id="s2">⭐</span>
+          <span class="star" id="s3">⭐</span>
+        </div>
+        <div class="score-gain" id="scoreGain">+۰ امتیاز</div>
+        <div class="win-detail" id="winDetail"></div>
+        <div class="win-buttons">
+          <button class="primary big" id="nextLevelBtn">مرحله بعد ➡</button>
+          <button id="replayBtn">🔄 مجدد</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="best-row">
+    <span class="best-label">ستاره‌های این دور:</span>
+    <span class="mini-star" id="bs1">⭐</span>
+    <span class="mini-star" id="bs2">⭐</span>
+    <span class="mini-star" id="bs3">⭐</span>
+    <span class="divider">|</span>
+    <span class="best-label">رکورد:</span>
+    <span class="best-moves" id="bestMovesEl">—</span>
+  </div>
+
+  <div class="controls">
+    <button id="undoBtn" disabled>↩ برگشت</button>
+    <button class="primary" id="resetBtn">🔄 ریست</button>
+    <button id="hintBtn">💡 راهنما</button>
+  </div>
+
+  <div class="msg info" id="msg">گره‌ها را بکش — وقتی تقاطع‌ها صفر شوند برنده‌ای</div>
+
+  <div class="help">
+    <b>هدف:</b> گره‌های رنگی را جابه‌جا کن تا هیچ دو خطی یکدیگر را <b>قطع نکنند</b>.
+    <br><b>ستاره‌ها و امتیاز:</b> از ابتدا در حداکثر مقدارند و با هر حرکت اضافی کم می‌شوند — با Undo برمی‌گردند.
+    <br><b>رکورد:</b> فقط وقتی بهتر از رکورد قبلی بازی کنی، مجموع بالا می‌رود.
+  </div>
+
+  <button class="link-btn" id="newPuzzleBtn" style="margin-top:6px">🎲 پازل جدید برای همین مرحله</button>
+  <br>
+  <button class="link-btn" id="restartBtn">🏠 شروع از مرحله ۱</button>
+</div>
+<script>
+(function(){
+  'use strict';
+
+  const LOGICAL = 480;
+  const PAD = 40;
+  const NODE_R = 14;
+  const COLORS = ['#ff6b9d','#64d2ff','#6dffa8','#ffd966','#b388ff','#ff9d5c','#5cffd0','#ff5c8a'];
+  const STORAGE_KEY = 'gerehgosha_v2';
+  const FA_DIGITS = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+  const fa = n => String(n).replace(/\d/g, d => FA_DIGITS[+d]);
+
+  // ============ ذخیره‌سازی ============
+  function defaultSave() {
+    return { level: 1, totalScore: 0, soundOn: true, best: {} };
+  }
+  let save = defaultSave();
+
+  function recomputeTotalFromBests() {
+    let total = 0;
+    for (const k in save.best) {
+      const b = save.best[k];
+      if (b && typeof b.score === 'number') total += b.score;
+    }
+    save.totalScore = total;
+  }
+
+  function loadSave() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && typeof p === 'object') save = Object.assign(defaultSave(), p);
+      }
+    } catch(e) { save = defaultSave(); }
+
+    if (typeof save.level !== 'number' || save.level < 1) save.level = 1;
+    if (typeof save.totalScore !== 'number' || !isFinite(save.totalScore)) save.totalScore = 0;
+    if (typeof save.soundOn !== 'boolean') save.soundOn = true;
+    if (!save.best || typeof save.best !== 'object') save.best = {};
+
+    // مهاجرت: پر کردن score برای رکوردهای قدیمی
+    let migrated = false;
+    for (const k in save.best) {
+      const b = save.best[k];
+      if (!b || typeof b !== 'object') { delete save.best[k]; continue; }
+      if (typeof b.moves !== 'number') b.moves = 99;
+      if (typeof b.stars !== 'number') b.stars = 1;
+      if (typeof b.score !== 'number') {
+        const lvl = parseInt(k) || 1;
+        b.score = 50 + (b.stars - 1) * 30 + lvl * 5;
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      recomputeTotalFromBests();
+      persist();
+    }
+  }
+  function persist() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save)); } catch(e) {}
+  }
+
+  // ============ صدا ============
+  let audioCtx = null;
+  function ensureAudio() {
+    if (audioCtx) {
+      if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+      return;
+    }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    } catch(e) { audioCtx = null; }
+  }
+  function beep(freq, dur, type, vol) {
+    dur = dur || 0.06; type = type || 'sine'; vol = vol || 0.1;
+    if (!save.soundOn) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    try {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + dur + 0.02);
+    } catch(e) {}
+  }
+  function playMove() { beep(440 + Math.random() * 200, 0.05, 'sine', 0.06); }
+  function playWin() {
+    beep(523, 0.12); setTimeout(() => beep(659, 0.12), 110);
+    setTimeout(() => beep(784, 0.15), 220); setTimeout(() => beep(1047, 0.3), 340);
+  }
+  function playStar(i) { setTimeout(() => beep(600 + i * 150, 0.1, 'sine', 0.15), i * 180); }
+  function playPenalty() { beep(180, 0.05, 'triangle', 0.08); }
+
+  // ============ Canvas ============
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let lastDpr = 0;
+  function setupCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (dpr === lastDpr) return;
+    lastDpr = dpr;
+    cv.width = LOGICAL * dpr;
+    cv.height = LOGICAL * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  setupCanvas();
+  window.addEventListener('resize', () => { setupCanvas(); draw(); });
+
+  // ============ وضعیت ============
+  let nodes = [];
+  let edges = [];
+  let solution = [];
+  let initialNodes = [];
+  let level = 1;
+  let moves = 0;
+  let levelOptimal = 3;
+  let dragging = -1;
+  let history = [];
+  let won = false;
+
+  // ============ DOM ============
+  const $ = id => document.getElementById(id);
+  const levelEl = $('levelEl'), crossEl = $('crossEl'), movesEl = $('movesEl'), scoreEl = $('scoreEl');
+  const bestMovesEl = $('bestMovesEl');
+  const totalScoreChip = $('totalScoreChip'), soundBtn = $('soundBtn');
+  const boardWrap = $('boardWrap'), winOverlay = $('winOverlay');
+  const winStars = [$('s1'), $('s2'), $('s3')];
+  const scoreGain = $('scoreGain'), winDetail = $('winDetail');
+  const nextLevelBtn = $('nextLevelBtn'), replayBtn = $('replayBtn');
+  const undoBtn = $('undoBtn'), resetBtn = $('resetBtn'), hintBtn = $('hintBtn');
+  const newPuzzleBtn = $('newPuzzleBtn'), restartBtn = $('restartBtn');
+  const msgEl = $('msg');
+  const bsEls = [$('bs1'), $('bs2'), $('bs3')];
+
+  function setMsg(t, c) { c = c || 'info'; msgEl.textContent = t; msgEl.className = 'msg ' + c; }
+
+  // ============ ستاره و امتیاز زنده ============
+  function getCurrentStars() {
+    if (moves === 0) return 3;
+    if (moves <= Math.ceil(levelOptimal * 1.3)) return 3;
+    if (moves <= Math.ceil(levelOptimal * 2.0)) return 2;
+    return 1;
+  }
+  function getCurrentScore() {
+    const stars = getCurrentStars();
+    const base = 100 - Math.max(0, moves - levelOptimal) * 5;
+    const starBonus = (stars - 1) * 30;
+    const levelBonus = level * 5;
+    return Math.max(10, base + starBonus + levelBonus);
+  }
+
+  // ============ هندسه ============
+  function segCross(p1, p2, p3, p4, eps) {
+    eps = eps || 0.015;
+    const d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x);
+    if (Math.abs(d) < 1e-9) return false;
+    const u = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d;
+    const v = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / d;
+    return u > eps && u < 1 - eps && v > eps && v < 1 - eps;
+  }
+  function countCrossingsIn(nArr, eArr) {
+    let count = 0;
+    const involved = new Set();
+    for (let i = 0; i < eArr.length; i++) {
+      for (let j = i + 1; j < eArr.length; j++) {
+        const e1 = eArr[i], e2 = eArr[j];
+        if (e1.a === e2.a || e1.a === e2.b || e1.b === e2.a || e1.b === e2.b) continue;
+        if (segCross(nArr[e1.a], nArr[e1.b], nArr[e2.a], nArr[e2.b])) {
+          count++;
+          involved.add(i); involved.add(j);
+        }
+      }
+    }
+    return { count, involved };
+  }
+  function countCrossings() { return countCrossingsIn(nodes, edges); }
+
+  // ============ تولید مرحله ============
+  function nodeCountForLevel(lvl) {
+    return Math.min(6 + Math.floor((lvl - 1) * 0.6), 12);
+  }
+  function edgeTargetForLevel(lvl, n) {
+    return Math.min(2 + Math.floor(lvl * 0.5), n - 2);
+  }
+
+  function generateLevel(lvl) {
+    level = lvl;
+    const count = nodeCountForLevel(lvl);
+    const cx = LOGICAL / 2, cy = LOGICAL / 2;
+    const R = LOGICAL / 2 - PAD - 10;
+
+    solution = [];
+    for (let i = 0; i < count; i++) {
+      const ang = (i / count) * Math.PI * 2 - Math.PI / 2;
+      solution.push({
+        x: cx + Math.cos(ang) * R,
+        y: cy + Math.sin(ang) * R,
+        color: COLORS[i % COLORS.length]
+      });
+    }
+
+    edges = [];
+    const edgeSet = new Set();
+    const keyOf = (a, b) => Math.min(a, b) + ',' + Math.max(a, b);
+    function tryAddEdge(a, b) {
+      if (a === b) return false;
+      const k = keyOf(a, b);
+      if (edgeSet.has(k)) return false;
+      for (let i = 0; i < edges.length; i++) {
+        const e = edges[i];
+        if (e.a === a || e.a === b || e.b === a || e.b === b) continue;
+        if (segCross(solution[a], solution[b], solution[e.a], solution[e.b], 0.005)) return false;
+      }
+      edgeSet.add(k);
+      edges.push({ a, b });
+      return true;
+    }
+    for (let i = 0; i < count; i++) tryAddEdge(i, (i + 1) % count);
+    const extraTarget = edgeTargetForLevel(lvl, count);
+    let added = 0, tries = 0;
+    while (added < extraTarget && tries++ < 500) {
+      const a = Math.floor(Math.random() * count);
+      const b = Math.floor(Math.random() * count);
+      if (tryAddEdge(a, b)) added++;
+    }
+
+    const minCrossings = Math.min(3, Math.max(2, count - 3));
+    let scrambled = null;
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const arr = [];
+      for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const rad = R * (0.15 + Math.random() * 0.8);
+        arr.push({
+          x: Math.max(PAD, Math.min(LOGICAL - PAD, cx + Math.cos(ang) * rad)),
+          y: Math.max(PAD, Math.min(LOGICAL - PAD, cy + Math.sin(ang) * rad)),
+          color: COLORS[i % COLORS.length]
+        });
+      }
+      let sep = true;
+      for (let i = 0; i < count && sep; i++) {
+        for (let j = i + 1; j < count; j++) {
+          if (Math.hypot(arr[i].x - arr[j].x, arr[i].y - arr[j].y) < NODE_R * 2.5) {
+            sep = false; break;
+          }
+        }
+      }
+      if (!sep) continue;
+      if (countCrossingsIn(arr, edges).count >= minCrossings) { scrambled = arr; break; }
+    }
+    if (!scrambled) {
+      const arr = solution.map(s => ({ x: s.x, y: s.y, color: s.color }));
+      for (let k = 0; k < 8; k++) {
+        const i = Math.floor(Math.random() * count);
+        const j = Math.floor(Math.random() * count);
+        if (i === j) continue;
+        const tX = arr[i].x, tY = arr[i].y;
+        arr[i].x = arr[j].x; arr[i].y = arr[j].y;
+        arr[j].x = tX; arr[j].y = tY;
+        if (countCrossingsIn(arr, edges).count >= minCrossings) break;
+      }
+      scrambled = arr;
+    }
+    nodes = scrambled;
+    initialNodes = nodes.map(n => ({ x: n.x, y: n.y, color: n.color }));
+
+    levelOptimal = 0;
+    for (let i = 0; i < nodes.length; i++) {
+      if (Math.hypot(nodes[i].x - solution[i].x, nodes[i].y - solution[i].y) > NODE_R * 1.5) levelOptimal++;
+    }
+    levelOptimal = Math.max(2, levelOptimal);
+  }
+
+  // ============ رسم ============
+  function draw() {
+    ctx.clearRect(0, 0, LOGICAL, LOGICAL);
+
+    ctx.strokeStyle = 'rgba(90,63,138,.15)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++) {
+      const p = (LOGICAL / 8) * i;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, LOGICAL); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(LOGICAL, p); ctx.stroke();
+    }
+
+    const cr = countCrossings();
+
+    for (let idx = 0; idx < edges.length; idx++) {
+      const e = edges[idx];
+      const p1 = nodes[e.a], p2 = nodes[e.b];
+      const isCross = cr.involved.has(idx);
+      ctx.save();
+      ctx.lineCap = 'round';
+      if (isCross) {
+        ctx.strokeStyle = '#ff3b5c';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#ff3b5c';
+        ctx.shadowBlur = 14;
+      } else {
+        const grad = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
+        grad.addColorStop(0, p1.color);
+        grad.addColorStop(1, p2.color);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = p1.color;
+        ctx.shadowBlur = 8;
+      }
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (let idx = 0; idx < nodes.length; idx++) {
+      const n = nodes[idx];
+      ctx.save();
+      ctx.shadowColor = n.color;
+      ctx.shadowBlur = dragging === idx ? 30 : 18;
+      const grad = ctx.createRadialGradient(n.x - 4, n.y - 4, 2, n.x, n.y, NODE_R);
+      grad.addColorStop(0, '#fff');
+      grad.addColorStop(0.4, n.color);
+      grad.addColorStop(1, n.color);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, dragging === idx ? NODE_R + 3 : NODE_R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    crossEl.textContent = fa(cr.count);
+    crossEl.className = 'value' + (cr.count === 0 ? ' good' : '');
+  }
+
+  // ============ ذرات ============
+  function burst(x, y) {
+    const colors = ['#ff6b9d','#64d2ff','#6dffa8','#ffd966','#b388ff','#fff'];
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const c = colors[Math.floor(Math.random() * colors.length)];
+      p.style.background = c;
+      p.style.left = x + 'px';
+      p.style.top = y + 'px';
+      p.style.boxShadow = '0 0 12px ' + c + ', 0 0 20px ' + c;
+      document.body.appendChild(p);
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 100 + Math.random() * 200;
+      const dx = Math.cos(ang) * dist;
+      const dy = Math.sin(ang) * dist;
+      p.animate([
+        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+        { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(0)', opacity: 0 }
+      ], { duration: 800 + Math.random() * 500, easing: 'cubic-bezier(.2,.8,.4,1)' });
+      setTimeout(() => p.remove(), 1400);
+    }
+  }
+
+  // ============ برد ============
+  function checkWin() {
+    if (won) return;
+    if (moves === 0) return;
+    const cr = countCrossings();
+    if (cr.count !== 0) { boardWrap.classList.remove('solved'); return; }
+
+    won = true;
+    boardWrap.classList.add('solved');
+    playWin();
+
+    const stars = getCurrentStars();
+    const currentScore = getCurrentScore();
+    const prev = save.best[level];
+    const isNewBest = !prev || currentScore > (prev.score || 0);
+
+    if (isNewBest) {
+      save.best[level] = { moves, stars, score: currentScore };
+      recomputeTotalFromBests();
+      persist();
+    }
+
+    const bestEntry = save.best[level];
+    const bestMoves = bestEntry ? bestEntry.moves : moves;
+    const bestStars = bestEntry ? bestEntry.stars : stars;
+
+    scoreGain.textContent = isNewBest
+      ? '+' + fa(currentScore) + ' امتیاز (رکورد جدید!)'
+      : 'امتیاز این دور: ' + fa(currentScore);
+
+    winDetail.innerHTML =
+      'حرکات: ' + fa(moves) + ' · ستاره: ' + fa(stars) + '/۳<br>' +
+      'رکورد این مرحله: ' + fa(bestMoves) + ' حرکت · ' + fa(bestStars) + '⭐' +
+      (isNewBest ? '' : '<br><span style="color:#ff9d5c">نتوانستی رکورد را بشکنی</span>');
+
+    const rect = boardWrap.getBoundingClientRect();
+    burst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+    setTimeout(() => {
+      winOverlay.classList.add('show');
+      winStars.forEach((el, i) => {
+        el.classList.remove('on');
+        if (i < stars) {
+          setTimeout(() => { el.classList.add('on'); playStar(i); }, 200 + i * 180);
+        }
+      });
+    }, 600);
+
+    updateUI();
+    setMsg('🎉 حل شد! در ' + fa(moves) + ' حرکت', 'good');
+  }
+
+  // ============ UI ============
+  function updateUI() {
+    levelEl.textContent = fa(level);
+    movesEl.textContent = fa(moves);
+
+    const liveScore = getCurrentScore();
+    scoreEl.textContent = fa(liveScore);
+    scoreEl.className = 'value' + (liveScore >= 150 ? ' good' : (liveScore < 80 ? ' warn' : ''));
+
+    const liveStars = getCurrentStars();
+    bsEls.forEach((el, i) => el.classList.toggle('on', i < liveStars));
+
+    const best = save.best[level];
+    bestMovesEl.textContent = best ? (fa(best.moves) + ' حرکت · ' + fa(best.stars) + '⭐') : '—';
+
+    totalScoreChip.textContent = '🏆 ' + fa(save.totalScore);
+  }
+
+  // ============ تعامل ============
+  function getPos(e) {
+    const r = cv.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (LOGICAL / r.width),
+      y: (e.clientY - r.top) * (LOGICAL / r.height)
+    };
+  }
+  function hitNode(pos) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      if (Math.hypot(nodes[i].x - pos.x, nodes[i].y - pos.y) <= NODE_R + 8) return i;
+    }
+    return -1;
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    if (won) return;
+    ensureAudio();
+    const idx = hitNode(getPos(e));
+    if (idx < 0) return;
+    dragging = idx;
+    history.push({ idx, x: nodes[idx].x, y: nodes[idx].y, moves });
+    undoBtn.disabled = false;
+    try { cv.setPointerCapture(e.pointerId); } catch(err) {}
+    draw();
+  });
+
+  cv.addEventListener('pointermove', e => {
+    if (dragging < 0 || won) return;
+    const pos = getPos(e);
+    nodes[dragging].x = Math.max(PAD, Math.min(LOGICAL - PAD, pos.x));
+    nodes[dragging].y = Math.max(PAD, Math.min(LOGICAL - PAD, pos.y));
+    draw();
+  });
+
+  cv.addEventListener('pointerup', e => {
+    try { if (cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId); } catch(err) {}
+    if (dragging < 0) return;
+    const idx = dragging;
+    dragging = -1;
+    const last = history[history.length - 1];
+    if (last && last.idx === idx && Math.hypot(nodes[idx].x - last.x, nodes[idx].y - last.y) > 4) {
+      const prevStars = getCurrentStars();
+      moves++;
+      playMove();
+      updateUI();
+      const newStars = getCurrentStars();
+      if (newStars < prevStars) {
+        playPenalty();
+        setMsg('⭐ یک ستاره کم شد', 'bad');
+      }
+      checkWin();
+    } else {
+      if (last && last.idx === idx) history.pop();
+      undoBtn.disabled = history.length === 0;
+    }
+    draw();
+  });
+
+  cv.addEventListener('pointercancel', () => {
+    if (dragging >= 0 && history.length) {
+      const last = history[history.length - 1];
+      if (last.idx === dragging) history.pop();
+    }
+    dragging = -1;
+    undoBtn.disabled = history.length === 0;
+    draw();
+  });
+
+  // ============ دکمه‌ها ============
+  function hideWin() {
+    winOverlay.classList.remove('show');
+    winStars.forEach(el => el.classList.remove('on'));
+    boardWrap.classList.remove('solved');
+  }
+
+  function resetLevel() {
+    won = false;
+    moves = 0;
+    history = [];
+    undoBtn.disabled = true;
+    hideWin();
+    nodes = initialNodes.map(n => ({ x: n.x, y: n.y, color: n.color }));
+    updateUI();
+    draw();
+    setMsg('مرحله ' + fa(level) + ' — گره‌ها را بکش', 'info');
+  }
+
+  function newPuzzle() {
+    won = false;
+    moves = 0;
+    history = [];
+    undoBtn.disabled = true;
+    hideWin();
+    generateLevel(level);
+    updateUI();
+    draw();
+    setMsg('مرحله ' + fa(level) + ' — پازل جدید', 'info');
+  }
+
+  function nextLevel() {
+    level++;
+    save.level = level;
+    persist();
+    won = false;
+    moves = 0;
+    history = [];
+    undoBtn.disabled = true;
+    hideWin();
+    generateLevel(level);
+    updateUI();
+    draw();
+    setMsg('مرحله ' + fa(level) + ' — گره‌ها را بکش', 'info');
+  }
+
+  function undo() {
+    if (won || history.length === 0) return;
+    const h = history.pop();
+    nodes[h.idx].x = h.x;
+    nodes[h.idx].y = h.y;
+    moves = h.moves;
+    undoBtn.disabled = history.length === 0;
+    updateUI();
+    draw();
+    setMsg('↩ به حالت قبل برگشتی', 'info');
+  }
+
+  function hint() {
+    if (won) return;
+    const cr = countCrossings();
+    if (cr.count === 0) { setMsg('💡 الان هیچ تقاطعی نیست — عالیه!', 'good'); return; }
+
+    const involvedNodes = new Set();
+    cr.involved.forEach(ei => {
+      involvedNodes.add(edges[ei].a);
+      involvedNodes.add(edges[ei].b);
+    });
+
+    let best = null, bestCross = cr.count;
+    for (const idx of involvedNodes) {
+      const sx = nodes[idx].x, sy = nodes[idx].y;
+      nodes[idx].x = solution[idx].x;
+      nodes[idx].y = solution[idx].y;
+      const c = countCrossings().count;
+      nodes[idx].x = sx; nodes[idx].y = sy;
+      if (c < bestCross) { bestCross = c; best = { idx, x: solution[idx].x, y: solution[idx].y }; }
+    }
+    if (!best) {
+      const corners = [
+        { x: PAD, y: PAD }, { x: LOGICAL - PAD, y: PAD },
+        { x: PAD, y: LOGICAL - PAD }, { x: LOGICAL - PAD, y: LOGICAL - PAD }
+      ];
+      for (const idx of involvedNodes) {
+        for (const c of corners) {
+          const sx = nodes[idx].x, sy = nodes[idx].y;
+          nodes[idx].x = c.x; nodes[idx].y = c.y;
+          const cnt = countCrossings().count;
+          nodes[idx].x = sx; nodes[idx].y = sy;
+          if (cnt < bestCross) { bestCross = cnt; best = { idx, x: c.x, y: c.y }; }
+        }
+      }
+    }
+    if (!best) { setMsg('💡 حرکت سریعی پیدا نشد — خودت تلاش کن', 'info'); return; }
+
+    history.push({ idx: best.idx, x: nodes[best.idx].x, y: nodes[best.idx].y, moves });
+    nodes[best.idx].x = best.x;
+    nodes[best.idx].y = best.y;
+    moves++;
+    undoBtn.disabled = false;
+    playMove();
+    updateUI();
+    checkWin();
+    draw();
+    setMsg('💡 گره ' + fa(best.idx + 1) + ' سر جایش رفت', 'info');
+  }
+
+  function toggleSound() {
+    save.soundOn = !save.soundOn;
+    soundBtn.textContent = save.soundOn ? '🔊' : '🔇';
+    persist();
+    if (save.soundOn) playMove();
+  }
+
+  resetBtn.addEventListener('click', resetLevel);
+  newPuzzleBtn.addEventListener('click', newPuzzle);
+  undoBtn.addEventListener('click', undo);
+  hintBtn.addEventListener('click', hint);
+  nextLevelBtn.addEventListener('click', nextLevel);
+  replayBtn.addEventListener('click', resetLevel);
+  soundBtn.addEventListener('click', toggleSound);
+
+  restartBtn.addEventListener('click', () => {
+    if (!confirm('همه پیشرفت پاک شود و از مرحله ۱ شروع کنی؟')) return;
+    save = defaultSave();
+    persist();
+    level = 1;
+    won = false;
+    moves = 0;
+    history = [];
+    undoBtn.disabled = true;
+    hideWin();
+    generateLevel(1);
+    updateUI();
+    draw();
+    setMsg('شروع مجدد از مرحله ۱', 'info');
+  });
+
+  document.addEventListener('keydown', e => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (won) {
+      if (e.key === 'Enter' && winOverlay.classList.contains('show')) {
+        e.preventDefault();
+        nextLevelBtn.click();
+      }
+      return;
+    }
+    if (e.key === 'r' || e.key === 'R') resetBtn.click();
+    else if (e.key === 'u' || e.key === 'U') undoBtn.click();
+    else if (e.key === 'h' || e.key === 'H') hintBtn.click();
+    else if (e.key === 'n' || e.key === 'N') newPuzzleBtn.click();
+    else if (e.key === 's' || e.key === 'S') soundBtn.click();
+  });
+
+  // ============ شروع ============
+  loadSave();
+  level = save.level;
+  soundBtn.textContent = save.soundOn ? '🔊' : '🔇';
+  generateLevel(level);
+  updateUI();
+  draw();
+  setMsg('مرحله ' + fa(level) + ' — گره‌ها را بکش', 'info');
+})();
+</script>
+</body>
+</html>
